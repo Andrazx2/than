@@ -11,8 +11,8 @@ local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Parent = player.PlayerGui
 
 local Frame = Instance.new("Frame")
-Frame.Size = UDim2.new(0, 200, 0, 150)
-Frame.Position = UDim2.new(0, 10, 0.5, -75)
+Frame.Size = UDim2.new(0, 200, 0, 250) -- Make frame taller
+Frame.Position = UDim2.new(0.85, -100, 0.5, -125) -- Position on right side
 Frame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
 Frame.BorderSizePixel = 0
 Frame.Parent = ScreenGui
@@ -22,6 +22,8 @@ Title.Size = UDim2.new(1, 0, 0, 30)
 Title.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.Text = "Jule Tools"
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 16
 Title.Parent = Frame
 
 -- Hitbox Controls
@@ -43,6 +45,9 @@ HitboxSize.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 HitboxSize.TextColor3 = Color3.fromRGB(255, 255, 255)
 HitboxSize.Text = tostring(hitboxSize)
 HitboxSize.PlaceholderText = "Hitbox Size"
+HitboxSize.Font = Enum.Font.GothamSemibold
+HitboxSize.TextSize = 14
+HitboxSize.ClearTextOnFocus = true
 HitboxSize.Parent = Frame
 
 -- Auto Click Controls
@@ -102,24 +107,30 @@ blockHighlight.LineThickness = 0.05
 blockHighlight.Color3 = Color3.fromRGB(255, 255, 0)
 blockHighlight.Parent = ScreenGui
 
+-- Save Original Sizes Function (was missing)
+local function saveOriginalSizes()
+    if not character then return end
+    for _, part in pairs(character:GetDescendants()) do
+        if part:IsA("BasePart") and not part:FindFirstChild("OriginalSize") then
+            local originalSize = Instance.new("Vector3Value")
+            originalSize.Name = "OriginalSize"
+            originalSize.Value = part.Size
+            originalSize.Parent = part
+        end
+    end
+end
+
 -- Improved Hold Function
 local function startHolding()
+    if holdConnection then holdConnection:Disconnect() end
     holdTimer = 0
+    
     spawn(function()
-        if holdConnection then holdConnection:Disconnect() end
-        
-        -- Initial press
         mouse1press()
+        local startTime = tick()
         
-        holdConnection = RunService.Heartbeat:Connect(function(delta)
-            if not autoClickEnabled then
-                mouse1release()
-                holdConnection:Disconnect()
-                TimeLabel.Text = "Time: 0s"
-                return
-            end
-            
-            holdTimer = holdTimer + delta
+        holdConnection = RunService.RenderStepped:Connect(function()
+            holdTimer = tick() - startTime
             TimeLabel.Text = string.format("Time: %.1fs", math.min(holdTimer, holdDuration))
             
             if holdTimer >= holdDuration then
@@ -133,6 +144,69 @@ local function startHolding()
         end)
     end)
 end
+
+-- Improve Button Styling
+local function styleButton(button)
+    button.Font = Enum.Font.GothamSemibold
+    button.TextSize = 14
+    button.BorderSizePixel = 0
+    button.AutoButtonColor = true
+end
+
+styleButton(HitboxButton)
+styleButton(AutoClickButton)
+styleButton(BlockBreakButton)
+
+-- Improve Progress Bar
+ProgressBar.AnchorPoint = Vector2.new(0.5, 0)
+ProgressBar.BorderSizePixel = 0
+ProgressFill.BorderSizePixel = 0
+
+-- Add Corner UI
+local function addCorners(guiObject)
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = guiObject
+end
+
+addCorners(Frame)
+addCorners(HitboxButton)
+addCorners(AutoClickButton)
+addCorners(BlockBreakButton)
+addCorners(HitboxSize)
+addCorners(ProgressBar)
+addCorners(ProgressFill)
+
+-- Add Draggable Functionality
+local isDragging = false
+local dragStart = nil
+local startPos = nil
+
+Title.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        isDragging = true
+        dragStart = input.Position
+        startPos = Frame.Position
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement and isDragging then
+        local delta = input.Position - dragStart
+        Frame.Position = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + delta.X,
+            startPos.Y.Scale,
+            startPos.Y.Offset + delta.Y
+        )
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        isDragging = false
+    end
+end)
 
 -- Add error handling for hitbox function
 local function updateHitbox()
